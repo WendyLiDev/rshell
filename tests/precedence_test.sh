@@ -1,11 +1,11 @@
-echo Without precedence operators: ;
-echo Apples && echo Banana || echo Cherry && echo Date;
-
 echo With precedence operators: ;
 (echo Apples && echo Banana) || (echo Cherry && echo Date);
 
-echo Without precedence operators: ;
+echo ;
+echo With nested precedence operators: ;
+((echo Apples && (echo Figs && echo Banana) || (echo Cherry && echo Date);
+echo ;
+(echo Grapes && ( ( test -e Parsnip.cpp) || echo Honeydew ) && echo kiwi);
 
-echo With precedence operators: ;
-
+echo ;
 echo exit && exit

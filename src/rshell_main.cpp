@@ -7,7 +7,7 @@ using namespace std;
 #include "RShell.h"
 
 string prompt(){
-	cout << "$ ";
+	// cout << "$ ";
 	string str;
 	getline(cin, str);
 	return str;

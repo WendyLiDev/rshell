@@ -35,11 +35,11 @@ vector< string >* Parser::strToV( string in ){/**/
 	*/
 	string list="&|;", pushMe="";
 	vector< string >* t1=new vector< string >;
-	bool skip=true, parenth=false;
-	int n = in.length(), curr=0, i;
+	bool skip=true;
+	int n = in.length(), curr=0, stackLevel=0, i;
 	/* Parse input string one char at a time */
 	for( i = 0; i<n; i++ ){
-		if( UT::inStr( in[i], list ) && !parenth ){
+		if( UT::inStr( in[i], list ) && !stackLevel ){
 			/* If here, found a &|; char and not inside parentheses */
 			if( !skip ){
 				/* If here, it's the first &|; char. So dump the 
@@ -56,11 +56,11 @@ vector< string >* Parser::strToV( string in ){/**/
 		}
 		/* All of the below cases set skip to false */
 		else if( in[i]=='(' ){//parenthes beginning; ignore &|; chars
-			parenth=true;
+			stackLevel++;
 			skip=false;
 		}
 		else if( in[i]==')' ){//parenthes end; stop ignoring &|; chars
-			parenth=false;
+			stackLevel--;
 			skip=false;
 		}
 		else {//a regular character; just count and keep parsing
@@ -117,7 +117,7 @@ void Parser::populate( RShell* composite ){
 		if( curr == "&" ){
 			if( curr==prev ){
 				if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
-					myCommand=new Composite( UT::trm( cmdTxt, '(', ')' ) );
+					myCommand=new Composite( cmdTxt.substr( 1, cmdTxt.length()-2 ) );
 				}
 				else{
 					myCommand=new Tester( cmdTxt );
@@ -129,7 +129,7 @@ void Parser::populate( RShell* composite ){
 					composite->addCommand( myConnector );
 				}
 				if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
-					myConnector=new AND( new Composite( UT::trm( cmdTxt, '(', ')' ) ) );
+					myConnector=new AND( new Composite( cmdTxt.substr( 1, cmdTxt.length()-2 ) ) );
 				}
 				else{
 					myConnector=new AND( new Tester( cmdTxt ) );
@@ -140,7 +140,7 @@ void Parser::populate( RShell* composite ){
 		else if( curr == "|" ){
 			if( curr==prev ){
 				if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
-					myCommand=new Composite( UT::trm( cmdTxt, '(', ')' ) );
+					myCommand=new Composite( cmdTxt.substr( 1, cmdTxt.length()-2 ) );
 				}
 				else{
 					myCommand=new Tester( cmdTxt );
@@ -152,7 +152,7 @@ void Parser::populate( RShell* composite ){
 					composite->addCommand( myConnector );
 				}
 				if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
-					myConnector=new OR( new Composite( UT::trm( cmdTxt, '(', ')' ) ) );
+					myConnector=new OR( new Composite( cmdTxt.substr( 1, cmdTxt.length()-2 ) ) );
 				}
 				else{
 					myConnector=new OR( new Tester( cmdTxt ) );
@@ -168,7 +168,7 @@ void Parser::populate( RShell* composite ){
 			*/
 			if( curr==prev ){
 				if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
-					myCommand=new Composite( UT::trm( cmdTxt, '(', ')' ) );
+					myCommand=new Composite( cmdTxt.substr( 1, cmdTxt.length()-2 ) );
 				}
 				else{
 					myCommand=new Tester( cmdTxt );
@@ -178,7 +178,7 @@ void Parser::populate( RShell* composite ){
 			else{
 				if( myConnector ){
 					if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
-						myCommand=new Composite( UT::trm( cmdTxt, '(', ')' ) );
+						myCommand=new Composite( cmdTxt.substr( 1, cmdTxt.length()-2 ) );
 					}
 					else{
 						myCommand=new Tester( cmdTxt );

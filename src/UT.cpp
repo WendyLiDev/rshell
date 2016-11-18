@@ -43,6 +43,11 @@ void UT::deleteNullTermArray( char* const* &argv ){
 }
 void UT::trunc( char at, string &in ){
 	int n=in.length();
+	if(in[0] == '#'){
+		//if line begins with '#' then replace line with command ":" which does nothing.
+		in = ":";
+		return;
+	}
 	for( int i = 0; i<n; i++ ){
 		if( in[i]==at ){
 			in=in.substr( 0, i );

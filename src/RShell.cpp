@@ -1,5 +1,4 @@
 /* David Swanson CS100 Fall 2016 */
-//echo and1 && (echo or1 || echo or2) && echo and2;
 
 #include "RShell.h"
 #include "Parser.h"
@@ -75,7 +74,7 @@ bool OR::execute(){
 	int n = q.size();
 	for( int i = 0; i<n; i++ ){
 		if( q.at( i )->execute() ){
-			//cout << "end OR execute: true result" << endl;
+			// cout << "end OR execute: true result" << endl;
 			return true;
 		}
 	}
@@ -116,7 +115,7 @@ bool Cmd::execute(){
 	else {//This is the parent process; wait for child
 		waitpid( pid, &status, 0 );
 		if( status ){
-			perror( "Command exited with status > 0" );
+			// perror( "Command exited with status > 0" );
 		}
 		//cout << "Parent process: status=" << cmd << ", " << arg << " exited with status " << status << endl;
 	}
