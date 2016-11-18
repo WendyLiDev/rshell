@@ -5,17 +5,33 @@
 #compile your program using g++ with the flags: 
 #-Wall -Werror -ansi -pedantic .
 
-CC=g++
-CC_FLAGS=-Wall -Werror -ansi -pedantic
-EXEC=rshell
-SOURCES=$(wildcard *.cpp)
-OBJECTS=$(SOURCES:.cpp=.o)
+#Compiler
+CC=g++ 
+CFLAGS=-Wall -Werror -ansi -pedantic -I$(HEADERDIR)
 
-$(EXEC): $(OBJECTS)
-	$(CC) $(OBJECTS) -o $(EXEC)
+#Name of executable
+TARGET=./bin/rshell
 
-%.o: %.cpp
-	$(CC) -c $(CC_FLAGS) $< -o $@
+#Source and object dir
+OBJDIR=bin
+SRCDIR=src
+HEADERDIR=header
+
+#Files and directories
+SOURCES=$(wildcard $(SRCDIR)/*.cpp)
+OBJECTS=$(SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
+
+
+#Targets
+all: $(TARGET)
+
+$(TARGET): $(OBJECTS)
+	$(CC) $(SOURCES) -o $(TARGET)
+
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp
+	mkdir -p $(OBJDIR)
+	$(CC) -c $(CFLAGS) $< -o $@
 
 clean:
-	rm -f $(EXEC) $(OBJECTS)
+	rm -f $(TARGET) $(OBJECTS)
+	rm -rf $(OBJDIR)
