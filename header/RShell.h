@@ -92,7 +92,7 @@ class Tester : public RShell{
 		bool e();
 		bool f();
 };
-#endif
+
 /*
 Is file and not directory:
 #include <sys/types.h>
@@ -105,3 +105,5 @@ bool f(){
     return S_ISREG( path_stat.st_mode )>0;
 }
 */
+
+#endif
