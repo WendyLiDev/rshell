@@ -1,4 +1,7 @@
+/* David Swanson CS100 Fall 2016 */
 #include "UT.h"
+
+/* See .h file for general descriptions */
 
 char* const* UT::toNullTermArray( vector< string > &v ){
 	int i, n=v.size();
@@ -15,7 +18,7 @@ void UT::printNullTermArray( char* const* argv ){
 	cout << "printNullTermArray:" << endl;
 	for ( int i = 0; true; i++ ){
 		if( argv[i] == NULL ){
-			cout << endl ;//<< "break on null" << endl;
+			//cout << endl ;//<< "break on null" << endl;
 			break;
 		}
 		for ( int j = 0; true; j++ ){
@@ -59,8 +62,19 @@ string UT::trm( string in ){
 	}
 	return ( top!=-1 && end!=-1 )? in.substr( top, end-top ) : "";
 }
+string UT::trm( string in, char opener, char closer ){
+	int n=in.length(), top=-1, end=-1;
+	for( int i = 0, j=n-1; i<n; i++, j-- ){
+		if( top==-1 && in[i]!=' ' && in[i]!=opener ){
+			top=i;
+		}
+		if( end==-1 && in[j]!=' ' && in[i]!='\n' && in[j]!=closer ){
+			end=j+1;
+		}
+	}
+	return ( top!=-1 && end!=-1 )? in.substr( top, end-top ) : "";
+}
 bool UT::inStr( char needle, string haystack ){
-	//cout << "instring " << needle <<endl;
 	int n=haystack.length();
 	for( int i = 0; i<n; i++ ){
 		if( haystack[i]==needle ){
@@ -69,37 +83,81 @@ bool UT::inStr( char needle, string haystack ){
 	}
 	return false;
 }
+bool UT::inV( string needle, vector<string> &haystack ){
+	int hSize=haystack.size();
+	for( int i = 0; i<hSize; i++ ){
+		if( haystack.at( i ) == needle ){
+			return true;
+		}
+	}
+	return false;
+}
+bool UT::inV( string needles[], int nSize, vector<string> &haystack ){
+	int hSize=haystack.size();
+	for( int i = 0; i<hSize; i++ ){
+		for( int j = 0; j<nSize; j++ ){
+			if( haystack.at( i ) == needles[j] ){
+				return true;
+			}
+		}
+	};
+	return false;
+}
 void UT::tok( char at, string in, vector< string > &t1 ){
-	string list="&|;", pushMe="";
-	bool skip=true;
-	int n = in.length(), curr=0, i;
+	string pushMe="";
+	int n = in.length(), curr=0, i=0;
 	for( i = 0; i<n; i++ ){
 		if( in[i]==at ){
-			//cout << "yes..."  << i << " skip="  << skip << ": " << in[i] <<endl;
-			if( !skip ){
-				pushMe=trm( in.substr( curr, i-curr ) );
-				//cout << "dump "  << pushMe << " or " << pushMe.c_str() <<endl;
-				if( pushMe.length() ){
-					t1.push_back( pushMe );
-				}
-				skip=true;
+			pushMe=trm( in.substr( curr, i-curr ) );
+			if( pushMe.length() ){
+				t1.push_back( pushMe );
 			}
 			curr=i+1;
 		}
-		else {
-			//cout << "no..."  << i << " skip="  << skip << ": " << in[i]<<endl;
-			skip=false;
+	}
+	pushMe=trm( in.substr( curr, i-curr ) );
+	if( pushMe.length() ){
+		t1.push_back( pushMe );
+	}
+}
+void UT::tok( char at, char groupOn, char groupOff, string in, vector< string > &t1 ){
+	bool inGroup=false;
+	int n = in.length(), curr=0, i;
+	string pushMe="";
+	/* Parse input string one char at a time */
+	for( i = 0; i<n; i++ ){
+		/* Doesn't differentiate between groupOn and groupOff. 
+			It just toggles on either char.  You could 
+			type )this( and it would toggle the same as (this) */
+		if( in[i] == groupOn || in[i] == groupOff ){
+			inGroup=!inGroup;
+		}
+		if( !inGroup && in[i]==at ){
+			pushMe=trm( in.substr( curr, i-curr ) );
+			if( pushMe.length() ){
+				t1.push_back( pushMe );
+			}
+			curr=i+1;
 		}
 	}
-	if( !skip  && i-curr ){
-		pushMe=trm( in.substr( curr, i-curr ) );
-		//cout << "last dump "  << pushMe << endl;
-		if( pushMe.length() ){
+	/* On loop finish, dump the rest of the string into the vector */
+	if( i-curr ){
+		pushMe=UT::trm( in.substr( curr, i-curr ) );
+		if( pushMe.length() ){//Couple of steps to avoid pushing empty string
 			t1.push_back( pushMe );
 		}
 	}
-	//cout << "Initial:" << endl;
-	//dispV( &t1 );
+}
+string UT::cmdLineToStr( int argc, char* argv[] ){
+	string out="";
+	for( int i = 1; i<argc; i++ ){
+		string s=string( argv[i] );
+		out += s;
+		if( i!= argc-1){
+			out += " ";
+		}
+	}
+	return out;
 }
 int UT::maxStrLen( vector< string >* v ){
 	unsigned int n=v->size(), max=0;

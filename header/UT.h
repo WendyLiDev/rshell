@@ -1,9 +1,11 @@
+/* David Swanson CS100 Fall 2016 */
 #ifndef UT_H
 #define UT_H
 #include<string>
 #include<vector>
 #include<iostream>
-#include<cstring>
+#include <stdio.h>
+#include <string.h>
 using namespace std;
 
 /*	This is the c++ equivalent to PHP static classes
@@ -11,21 +13,29 @@ using namespace std;
 	different classes, just give it global scope (protected by a namespace)
 */
 namespace UT{//Utility
-	/*	Converts vector to array of char arrays to comply with execvp.
+
+	/*	Converts vector<string> to array of char arrays to comply with execvp.
 		Adds NULL element at end
 		These are heap pointers: need to delete
 		Use deleteNullTermArray()
-		Note: this function sucked to write; hope it works
 	*/
 	char* const* toNullTermArray( vector< string > &v );
 
 	/* Deallocates the above array by iterating and deleting */
 	void deleteNullTermArray( char* const* &argv );
+
+	/* This one just prints for debugging */
 	void printNullTermArray( char* const* argv );
-	/* Tokenize string to the referenced vector on 'at' char
+
+	/* Tokenizes string to the referenced vector on 'at' char
 		Assume empty vector to start 
 	*/
 	void tok( char at, string in, vector< string > &t1 );
+
+	/* As above, but groups quoted or bracketed text to one element with 
+		groupOn/groupOff char included 
+	*/
+	void tok( char at, char groupOn, char groupOff, string in, vector< string > &t1 );
 
 	/* Truncates referenced string on 'at' char */
 	void trunc( char at, string &in );
@@ -33,15 +43,27 @@ namespace UT{//Utility
 	/* Kills whitespace before and after text; returns altered string */
 	string trm( string in );
 
+	/* like above, but removes opener and closer characters too. 
+		For killing enclosing parentheses, brackets, quotes etc */
+	string trm( string in, char opener, char closer );
+
 	/* Like find, but returns bool */
 	bool inStr( char needle, string haystack );
 
-	/* Returns length of longest string in the vector */
+	/* Find a string in a string vector* */
+	bool inV( string needle, vector<string> &haystack );
+
+	/* Find one of a group of strings in a string vector* */
+	bool inV( string needles[], int nSize, vector<string> &haystack );
+
+	/* Convert array of char arrays to string, skipping first element */
+	string cmdLineToStr( int argc, char* argv[] );
+
+	/* Returns length of longest string in the vector. (Not using this one) */
 	int maxStrLen( vector< string >* v );
 
 	/* Dev tool; Quick display of vector contents */
 	void dispV( vector< string >* v );
-};
+}
 
 #endif
-

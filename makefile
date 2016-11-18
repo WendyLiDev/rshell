@@ -1,28 +1,21 @@
+#You must have a Makefile in the root directory
+#In the Makefile you will have two targets. The
+#first target is called all and the second target
+#is called rshell. Both of these targets will
+#compile your program using g++ with the flags: 
+#-Wall -Werror -ansi -pedantic .
+
 CC=g++
+CC_FLAGS=-Wall -Werror -ansi -pedantic
+EXEC=rshell
+SOURCES=$(wildcard *.cpp)
+OBJECTS=$(SOURCES:.cpp=.o)
 
-CFLAGS=-c -Wall -Werror
+$(EXEC): $(OBJECTS)
+	$(CC) $(OBJECTS) -o $(EXEC)
 
-all: assignment2
-
-assignment2: And.o Operator.o main.o Command.o Or.o Semicolon.o -o assignment2
-
-main.o: main.cpp
-	$(CC) $(CFLAGS) main.cpp
-
-Command.o: Command.cpp
-	$(CC) $(CFLAGS) Command.cpp
-	
-And.o: And.cpp
-	$(CC) $(CFLAGS) And.cpp
-
-Or.o: Or.cpp
-	$(CC) $(CFLAGS) Or.cpp
-	
-Semicolon.o: Semicolon.cpp
-	$(CC) $(CFLAGS) Selicolon.cpp
-
-Operator.o: Operator.cpp
-	$(CC) $(CFLAGS) Operator.cpp
+%.o: %.cpp
+	$(CC) -c $(CC_FLAGS) $< -o $@
 
 clean:
-	rm *o assignment2
+	rm -f $(EXEC) $(OBJECTS)

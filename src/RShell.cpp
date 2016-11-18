@@ -1,3 +1,6 @@
+/* David Swanson CS100 Fall 2016 */
+//echo and1 && (echo or1 || echo or2) && echo and2;
+
 #include "RShell.h"
 #include "Parser.h"
 
@@ -17,13 +20,13 @@ bool Composite::execute(){
 	if( P->getErrNo()>1 ){
 		return false;
 	}
-	/* q may hold objects of AND, OR, and Cmd */
+	/* q may hold objects of AND, OR, Cmd or Composite */
 	int n = q.size();
-	//cout << "Composite numCmds=" << n << endl;
+	bool good=true;
 	for( int i = 0; i<n; i++ ){
-		q.at( i )->execute();
+		good &= q.at( i )->execute();
 	}
-	return true;
+	return good;
 }
 void Composite::addCommand( RShell* newConnector ){
 	q.push_back( newConnector );
@@ -88,14 +91,12 @@ bool Cmd::execute(){
 		exit( 0 );
 	}
 	int status=0;
-	vector< string > t1;
-	UT::tok( ' ', cmd, t1 );
-	char* const* argv=UT::toNullTermArray( t1 );
+	//vector< string > t1;
+	//UT::tok( ' ', cmd, t1 );
+	//char* const* argv=UT::toNullTermArray( t1 );
 	//UT::printNullTermArray( argv );
 	
-	///*
 	pid_t pid = fork();
-	
 	if (pid == -1){
 		perror( "Could not start child process" );
 	}
@@ -119,49 +120,113 @@ bool Cmd::execute(){
 		}
 		//cout << "Parent process: status=" << cmd << ", " << arg << " exited with status " << status << endl;
 	}
-	//*/
+	//UT::deleteNullTermArray( argv );
 	return ( status == 0 );
 }
 
 Tester::Tester( string setStr ){
-	testing=false;
-	composite=new Composite( setStr );
+	/* Tester parses command text looking for [] or 'test' 
+		
+	*/
+	vector< string > t1;
+	if( 
+		( prepTest1( setStr, t1 ) || prepTest2( setStr, t1 ) ) &&
+			prepTest3( t1 )
+		){
+		testing= true;
+		//cout << "testType=" << testType << endl;
+		//cout << "fileName=" << fileName << endl;
+		C=NULL;
+	}
+	else{
+		/* If here, no test; instantiate Cmd object and pass execution to that 
+			based on bool testing var
+		*/
+		C=new Cmd( setStr );
+		testing=false;
+	}
 }
 Tester::~Tester(void){
-	delete composite;
+	if( C ){
+		delete C;
+	}
 }
-bool Tester::parse1( string &in ){
-	string trimmed=UT::trm( in );
-	if( trimmed.length() > 4 && trimmed.substr( 0,4 )=="test" ){
-		in=UT::trm( trimmed.substr( 4 ) );
+bool Tester::prepTest1( string &in, vector< string > &t1 ){
+	/* Checks for test brackets; if so, tokenizes string to vector */
+	string trimmed=UT::trm( in, '[', ']' );
+	if( trimmed.length() != in.length() ){
+		in=trimmed;
+		UT::tok( ' ', '"', '"', trimmed, t1 );
 		return true;
 	}
 	return false;
 }
-bool Tester::parse2( string &in ){
-	string trimmed=UT::trm( in );
-	if( trimmed.length() > 1 && trimmed[1]=='[' ){
-		in=UT::trm( trimmed.substr( 4 ) );
-		return true;
+bool Tester::prepTest2( string &in, vector< string > &t1 ){
+	/* Tokenizes string to vector and checks for keyword 'test' */
+	UT::tok( ' ', '"', '"', in, t1 );
+	int n=t1.size();
+	for( int i = 0; i<n; i++ ){
+		if( t1.at( i ) == "test" ){
+			t1.erase( t1.begin() + i );
+			return true;
+		}
 	}
 	return false;
+}
+bool Tester::prepTest3( vector<string> &t1 ){
+	/* Checks for args -e -f -d. Sets test type and filename */
+	int n=t1.size();
+	testType=' ';
+	fileName="";
+	for( int i = 0; i<n; i++ ){
+		if( t1.at( i ) == "-e" ){
+			testType='e';
+		}
+		else if( t1.at( i ) == "-f" ){
+			testType='f';
+		}
+		else if( t1.at( i ) == "-d" ){
+			testType='d';
+		}
+		else{
+			fileName=UT::trm( t1.at( i ), '"', '"' );
+		}
+	}
+	return testType && fileName.length();
+}
+/* d, e, f execute based on testType, if any */
+bool Tester::d() {
+	const char *path=fileName.c_str();
+ 	struct stat s;
+	return !stat( path,&s ) && ( s.st_mode & S_IFDIR );
+}
+bool Tester::e() {
+	const char *path=fileName.c_str();
+   	 struct stat s;
+	return !stat( path,&s );
+}
+bool Tester::f(){
+	const char* path=fileName.c_str();
+	struct stat s;
+	return !stat( path, &s ) && ( s.st_mode & S_IFREG );
 }
 bool Tester::execute(){
 	if( !testing ){
-		return composite->execute();
+		//cout << "not testing" << endl;
+		return C->execute();
 	}
-	/* Returns false on parse error */
-	string err=composite->getErrTxt();
-	if( err.length() || !composite->execute() ){
+	bool result=( testType=='d' && d() ) ||
+				( testType=='e' && e() ) ||
+				( testType=='f' && f() );
+	if( result){
+		cout << "(True)" << endl;
+		return true;
+	}
+	else{
 		cout << "(False)" << endl;
 		return false;
 	}
-	cout << "(True)" << endl;
-	return true;
 }
 void Tester::addCommand( RShell* newConnector ){
-	composite->addCommand( newConnector );
-}
-string Tester::getErrTxt(){
-	return composite->getErrTxt();
+	C->addCommand( newConnector );
 }

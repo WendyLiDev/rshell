@@ -1,3 +1,4 @@
+/* David Swanson CS100 Fall 2016 */
 #ifndef PARSER_H
 #define PARSER_H
 #include "RShell.h"
@@ -16,7 +17,5 @@ class Parser{
 		int errNo;		//integer error code
 		vector< string >* strToV( string in );
 };
-
-
 
 #endif

@@ -1,10 +1,13 @@
+/* David Swanson CS100 Fall 2016 */
+
 #include "Parser.h"
 
 string Parser::getErrTxt(){
 	/* Returns text for parsing errors */
 	switch( errNo ){
+		/* 0=no error; 1=empty string, not reported */
 		case 2:
-			return "Check syntax near '&& || ;'";
+			return "Check syntax near '&& || ;'\n";
 		default:
 			return "";
 	}
@@ -12,83 +15,112 @@ string Parser::getErrTxt(){
 int Parser::getErrNo(){
 	return errNo;
 }
-vector< string >* Parser::strToV( string in ){
+/* Tokenizes input string on connector chars, ignoring 
+	second occurrence of same char; trims whitespace.
+	Creates vector* t1 which needs to be deleted
+	For the input string: cmd1 arg1 && cmd2; Vector will hold:
+		cmd1 arg1
+		&
+		cmd2
+		;
+*/
+vector< string >* Parser::strToV( string in ){/**/
+	/* variables:
+		list is what to split on
+		t1 is target
+		curr is index for start of current substr
+		skip allows skipping of second char occurrence
+		inSub allows grouping of all text within parentheses
+		i is needed outside the for loop
+	*/
 	string list="&|;", pushMe="";
 	vector< string >* t1=new vector< string >;
-	bool skip=true, inSub=false;
+	bool skip=true, parenth=false;
 	int n = in.length(), curr=0, i;
+	/* Parse input string one char at a time */
 	for( i = 0; i<n; i++ ){
-		if( UT::inStr( in[i], list ) && !inSub ){
-			//cout << "yes..."  << i << " skip="  << skip << ": " << in[i]<<endl;
+		if( UT::inStr( in[i], list ) && !parenth ){
+			/* If here, found a &|; char and not inside parentheses */
 			if( !skip ){
-				//cout << "dump "  << in.substr( curr, i-curr ) <<endl;
+				/* If here, it's the first &|; char. So dump the 
+					previous part of the string into the vector 
+				*/
 				pushMe=UT::trm( in.substr( curr, i-curr ) );
-				if( pushMe.length() ){
+				if( pushMe.length() ){//if nothing is there, don't push it
 					t1->push_back( pushMe );
 				}
-				t1->push_back( in.substr( i, 1 ) );
-				skip=true;
+				t1->push_back( in.substr( i, 1 ) );//push the current &|; char
+				skip=true;//skip the next one
 			}
-			curr=i+1;
+			curr=i+1;//set current so the next dump starts here
 		}
-		else if( in[i]=='('){
-			inSub=true;
+		/* All of the below cases set skip to false */
+		else if( in[i]=='(' ){//parenthes beginning; ignore &|; chars
+			parenth=true;
 			skip=false;
 		}
-		else if( in[i]==')'){
-			inSub=false;
+		else if( in[i]==')' ){//parenthes end; stop ignoring &|; chars
+			parenth=false;
 			skip=false;
 		}
-		else {
-			//cout << "no..."  << i << " skip="  << skip << ": " << in[i]<<endl;
+		else {//a regular character; just count and keep parsing
 			skip=false;
 		}
 	}
+	/* On loop finish, dump the rest of the string into the vector */
 	if( i-curr ){
 		pushMe=UT::trm( in.substr( curr, i-curr ) );
-		if( pushMe.length() ){
+		if( pushMe.length() ){//Couple of steps to avoid pushing empty string
 			t1->push_back( pushMe );
 		}
 	}
+	/* ; is optional in bash, so add it if not there */
 	if( t1->at( t1->size()-1 ) != ";" ){
 		t1->push_back( ";" );
 	}
-	//cout << "Initial:" << endl;
-	//UT::dispV( t1 );
 	return t1;
 }
+/* Function populates composite object from string input */
 void Parser::populate( RShell* composite ){
-	/* Function populates composite object from string input */
+	/* First, parse the string and deal with parse errors */
 	if( !str.length() ){
 		errNo=1;//empty string, false, no message
 		return;
 	}
-	UT::trunc( '#', str );
-	vector< string >* t1=strToV( str );
+	UT::trunc( '#', str );//Get rid of comments
+	vector< string >* t1=strToV( str );//tokenize string to vector
 	int n = t1->size();
 	if( !n || n%2 != 0 ){
-		//cout << "failed n%2" << endl;
+		/* If here, user typed something like & & */
 		errNo=2;//syntax error
 		return;
 	}
+	/* Variables:
+		RShell pointers are local vars to hold commands to be added to composite
+		curr is more readable than: t1->at( i )  It's the current &|; char
+		cmdTxt is more readable than: t1->at( i-1 )  It's the current command and args
+		prev holds curr from previous round
+	*/
 	RShell* myConnector=NULL;
 	RShell* myCommand=NULL;
-	string curr="", prev=";", cmdTxt="";
+	string curr="", cmdTxt="", prev=";";
 	/* t1 length is multiples of 2 */
 	for( int i = 1; i<n; i+=2 ){
 		curr=t1->at( i );
 		cmdTxt=t1->at( i-1 );
 		/* &, | connectors have same behavior, accumulate or dump.
-			Two ways to addCommand: in object constructor for initial cmd
-			If multiple cmds, uses addCommand() to push them to the composite queue
+			Two ways to addCommand: 
+			1. In object constructor for initial cmd; pushes to first of composite queue
+			2. If multiple cmds, uses addCommand() to push them to the composite queue
 		*/
+		/* First 2 cases are identical except for AND or OR object being created */
 		if( curr == "&" ){
 			if( curr==prev ){
 				if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
-					myCommand=new Composite( cmdTxt.substr( 1, cmdTxt.length()-2 ) );
+					myCommand=new Composite( UT::trm( cmdTxt, '(', ')' ) );
 				}
 				else{
-					myCommand=new Cmd( cmdTxt );
+					myCommand=new Tester( cmdTxt );
 				}
 				myConnector->addCommand(  myCommand );
 			}
@@ -96,16 +128,22 @@ void Parser::populate( RShell* composite ){
 				if( myConnector ){
 					composite->addCommand( myConnector );
 				}
-				myConnector=new AND( new Cmd( t1->at( i-1 ) ) );
+				if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
+					myConnector=new AND( new Composite( UT::trm( cmdTxt, '(', ')' ) ) );
+				}
+				else{
+					myConnector=new AND( new Tester( cmdTxt ) );
+				}
+				
 			}
 		}
 		else if( curr == "|" ){
 			if( curr==prev ){
 				if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
-					myCommand=new Composite( cmdTxt.substr( 1, cmdTxt.length()-2 ) );
+					myCommand=new Composite( UT::trm( cmdTxt, '(', ')' ) );
 				}
 				else{
-					myCommand=new Cmd( cmdTxt );
+					myCommand=new Tester( cmdTxt );
 				}
 				myConnector->addCommand(  myCommand );
 			}
@@ -113,9 +151,15 @@ void Parser::populate( RShell* composite ){
 				if( myConnector ){
 					composite->addCommand( myConnector );
 				}
-				myConnector=new OR( new Cmd( t1->at( i-1 ) ) );
+				if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
+					myConnector=new OR( new Composite( UT::trm( cmdTxt, '(', ')' ) ) );
+				}
+				else{
+					myConnector=new OR( new Tester( cmdTxt ) );
+				}
 			}
 		}
+		
 		else if( curr == ";" ){
 			/* Semicolon behavior different because of input like: cmd && cmd;
 				Skip adding new if preceded by a different connector, as that connector
@@ -124,20 +168,20 @@ void Parser::populate( RShell* composite ){
 			*/
 			if( curr==prev ){
 				if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
-					myCommand=new Composite( cmdTxt.substr( 1, cmdTxt.length()-2 ) );
+					myCommand=new Composite( UT::trm( cmdTxt, '(', ')' ) );
 				}
 				else{
-					myCommand=new Cmd( cmdTxt );
+					myCommand=new Tester( cmdTxt );
 				}
 				composite->addCommand(  myCommand );
 			}
 			else{
 				if( myConnector ){
 					if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
-						myCommand=new Composite( cmdTxt.substr( 1, cmdTxt.length()-2 ) );
+						myCommand=new Composite( UT::trm( cmdTxt, '(', ')' ) );
 					}
 					else{
-						myCommand=new Cmd( cmdTxt );
+						myCommand=new Tester( cmdTxt );
 					}
 					myConnector->addCommand(  myCommand );
 					composite->addCommand( myConnector );
@@ -153,4 +197,5 @@ void Parser::populate( RShell* composite ){
 	}
 	delete t1;
 }
-
+/*
+*/

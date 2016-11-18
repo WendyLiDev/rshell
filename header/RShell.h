@@ -1,17 +1,22 @@
+
+/* David Swanson CS100 Fall 2016 */
+
 #ifndef RSHELL_H
 #define  RSHELL_H
 #include<iostream>
 #include <string>
 #include <vector>
 #include <unistd.h>//Linux
-#include <sys/types.h>
+//#include <sys/types.h>//not needed?
 #include <sys/wait.h>//Missing on my system
 #include <errno.h>
 #include <stdio.h>
 #include <iostream>
 #include <string.h>
 #include <stdlib.h>
-#include <cstring>
+#include <fstream>
+#include <sys/stat.h>
+#include <sys/types.h>
 using namespace std;
 #include "Parser.h"
 
@@ -68,17 +73,35 @@ class Composite : public RShell{
 		vector< RShell* > q;
 		Parser* P;
 };
+/* Tester: decorator pattern inserted just above any Cmd object */
 class Tester : public RShell{
 	public:
 		Tester( string setStr );
 		~Tester(void);
 		bool execute();
 		void addCommand( RShell* newCmd );
-		string getErrTxt();
 	protected:
-		Composite* composite;
+		RShell* C;
 		bool testing;
-		bool parse1( string &in );
-		bool parse2( string &in );
+		char testType;
+		string fileName;
+		bool prepTest1( string &in, vector< string > &t1 );
+		bool prepTest2( string &in, vector< string > &t1 );
+		bool prepTest3( vector< string > &t1 );
+		bool d();
+		bool e();
+		bool f();
 };
 #endif
+/*
+Is file and not directory:
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+bool f(){
+	const char *path=fileName.c_str();
+    struct stat path_stat;
+    stat(path, &path_stat);
+    return S_ISREG( path_stat.st_mode )>0;
+}
+*/
