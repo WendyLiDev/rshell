@@ -1,6 +1,6 @@
 /* David Swanson CS100 Fall 2016 */
 
-#include "Parser.h"
+#include "../header/Parser.h"
 
 string Parser::getErrTxt(){
 	/* Returns text for parsing errors */

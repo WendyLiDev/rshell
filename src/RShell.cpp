@@ -1,7 +1,7 @@
 /* David Swanson CS100 Fall 2016 */
 
-#include "RShell.h"
-#include "Parser.h"
+#include "../header/RShell.h"
+#include "../header/Parser.h"
 
 Composite::Composite( string setStr ){
 	P=new Parser( setStr );

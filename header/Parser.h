@@ -1,8 +1,8 @@
 /* David Swanson CS100 Fall 2016 */
 #ifndef PARSER_H
 #define PARSER_H
-#include "RShell.h"
-#include "UT.h"
+#include "../header/RShell.h"
+#include "../header/UT.h"
 
 class RShell;
 

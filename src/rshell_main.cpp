@@ -3,8 +3,8 @@
 #include<iostream>
 #include <string>
 using namespace std;
-#include "Parser.h"
-#include "RShell.h"
+#include "../header/Parser.h"
+#include "../header/RShell.h"
 
 string prompt(){
 	// cout << "$ ";
