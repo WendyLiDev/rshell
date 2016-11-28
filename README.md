@@ -9,3 +9,4 @@ Features in this version
 * -d -e -f arguments check directory, existence and file
 * Can type test commands in any order eg. 'test filename -e' or '[-e filename]
 * Test function supports multi-word filename in double quotes
+
