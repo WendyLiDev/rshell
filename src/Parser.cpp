@@ -1,7 +1,11 @@
 /* David Swanson CS100 Fall 2016 */
 
-#include "../header/Parser.h"
+#include "Parser.h"
+/* See header for general descriptions */
 
+int Parser::getErrNo(){
+	return errNo;
+}
 string Parser::getErrTxt(){
 	/* Returns text for parsing errors */
 	switch( errNo ){
@@ -12,63 +16,173 @@ string Parser::getErrTxt(){
 			return "";
 	}
 }
-int Parser::getErrNo(){
-	return errNo;
+RShell* Parser::makeConnector( char symb ){
+	if( symb=='&' ){
+		return new AND();
+	}
+	if( symb=='|' ){
+		return new OR();
+	}
+	if( symb==';' ){
+		return new SemiColon();
+	}
+	/* This'll never happen */
+	cout << "Parser::makeConnector: bad symbol caused NULL return" << endl;
+	return NULL;
 }
-/* Tokenizes input string on connector chars, ignoring 
-	second occurrence of same char; trims whitespace.
-	Creates vector* t1 which needs to be deleted
-	For the input string: cmd1 arg1 && cmd2; Vector will hold:
-		cmd1 arg1
-		&
-		cmd2
-		;
-*/
-vector< string >* Parser::strToV( string in ){/**/
-	/* variables:
-		list is what to split on
-		t1 is target
-		curr is index for start of current substr
-		skip allows skipping of second char occurrence
-		inSub allows grouping of all text within parentheses
-		i is needed outside the for loop
+RShell* Parser::makeCmd( string in ){
+	vector< string > t1;
+	char test=' ';
+	string file="";
+	if( 
+		( cmdIsTest1( in, t1 ) || cmdIsTest2( in, t1 ) ) &&
+			cmdIsTest3( t1, test, file )
+		){
+		return new Tester( test, file );
+	}
+	else if( cmdIsCd1( t1 )  &&	cmdIsCd2( t1, file ) ){
+		return new CD( file );
+	}
+	else if( cmdIsParenth( in ) ){
+		return new Composite( in, dirs );
+	}
+	else{
+		return new Cmd( in );
+	}
+}
+bool Parser::cmdIsTest1( string &in, vector< string > &t1 ){
+	/* Checks for test brackets; if so, tokenizes string to vector */
+	string trimmed=UT::trm( in, '[', ']' );
+	if( trimmed.length() != in.length() ){
+		in=trimmed;
+		UT::tok( ' ', '"', '"', trimmed, t1 );
+		return true;
+	}
+	return false;
+}
+bool Parser::cmdIsTest2( string &in, vector< string > &t1 ){
+	/* Tokenizes string to vector and checks for keyword 'test' */
+	UT::tok( ' ', '"', '"', in, t1 );
+	int n=t1.size();
+	for( int i = 0; i<n; i++ ){
+		if( t1.at( i ) == "test" ){
+			t1.erase( t1.begin() + i );
+			return true;
+		}
+	}
+	return false;
+}
+bool Parser::cmdIsTest3( vector<string> &t1, char &testType, string &fileName ){
+	/* Checks for args -e -f -d. Sets test type and filename */
+	int n=t1.size();
+	testType=' ';
+	fileName="";
+	for( int i = 0; i<n; i++ ){
+		if( t1.at( i ) == "-e" ){
+			testType='e';
+		}
+		else if( t1.at( i ) == "-f" ){
+			testType='f';
+		}
+		else if( t1.at( i ) == "-d" ){
+			testType='d';
+		}
+		else{
+			fileName=UT::trm( t1.at( i ), '"', '"' );
+		}
+	}
+	return testType && fileName.length();
+}
+bool Parser::cmdIsCd1( vector< string > &t1 ){
+	/* t1 is tokenized string; check for keyword 'cd' */
+	int n=t1.size();
+	for( int i = 0; i<n; i++ ){
+		if( t1.at( i ) == "cd" ){
+			t1.erase( t1.begin() + i );
+			return true;
+		}
+	}
+	return false;
+}
+bool Parser::cmdIsCd2( vector<string> &t1, string &fileName ){
+	/* Checks for args '-'' or filename */
+	int n=t1.size();
+	fileName="";
+	for( int i = 0; i<n; i++ ){
+		if( t1.at( i ) == "-" ){
+			fileName=dirs[1];
+		}
+		else{
+			fileName=UT::trm( t1.at( i ), '"', '"' );
+		}
+	}
+	if( !fileName.length() ){
+		fileName=dirs[2];
+	}
+	return fileName.length()>0;
+}
+bool Parser::cmdIsParenth( string &in ){
+	/* Check for ( ) and delete them */
+	int len=in.length();
+	if( len>2 && in[0]=='(' && in[len-1]==')' ){
+		in=in.substr( 1, in.length()-2 );
+		return true;
+	}
+	return false;
+}
+vector< string >* Parser::strToV( string in ){
+	/* Tokenizes input string on connector chars, ignoring 
+		first occurrence of same char; trims whitespace.
+		Creates vector* t1 which needs to be deleted
+		For the input string: "cmd1 arg1 && cmd2;" Vector will hold:
+			cmd1 arg1
+			&
+			cmd2
+			;
+		For: "a && (b || c)" Vector will hold:
+			a
+			&
+			(b || c)
+			;
 	*/
-	string list="&|;", pushMe="";
+	string pushMe="";
 	vector< string >* t1=new vector< string >;
-	bool skip=true;
+	char lastChar=' ';
 	int n = in.length(), curr=0, stackLevel=0, i;
 	/* Parse input string one char at a time */
 	for( i = 0; i<n; i++ ){
-		if( UT::inStr( in[i], list ) && !stackLevel ){
-			/* If here, found a &|; char and not inside parentheses */
-			if( !skip ){
-				/* If here, it's the first &|; char. So dump the 
-					previous part of the string into the vector 
-				*/
-				pushMe=UT::trm( in.substr( curr, i-curr ) );
-				if( pushMe.length() ){//if nothing is there, don't push it
-					t1->push_back( pushMe );
-				}
-				t1->push_back( in.substr( i, 1 ) );//push the current &|; char
-				skip=true;//skip the next one
-			}
-			curr=i+1;//set current so the next dump starts here
-		}
-		/* All of the below cases set skip to false */
-		else if( in[i]=='(' ){//parenthes beginning; ignore &|; chars
+		if( in[i]=='(' ){//parenthes beginning; ignore &|; chars
 			stackLevel++;
-			skip=false;
 		}
 		else if( in[i]==')' ){//parenthes end; stop ignoring &|; chars
 			stackLevel--;
-			skip=false;
 		}
-		else {//a regular character; just count and keep parsing
-			skip=false;
+		else if( !stackLevel ){
+			/* If here, not inside parentheses */
+			if( lastChar==in[i] && ( in[i]=='&' || in[i]=='|' ) ){
+				/* If here, it's the second &| char. So dump the 
+					previous part of the string into the vector 
+				*/
+				pushMe=UT::trm( in.substr( curr, i-curr-1 ) );
+				if( pushMe.length() ){//if nothing is there, don't push it
+					t1->push_back( pushMe );
+				}
+				t1->push_back( in.substr( i, 1 ) );//push the current &| char
+				curr=i+1;//set current so the next dump starts here
+			}
+			else if( in[i]==';' ){//semicolon splits on first occurrence
+				pushMe=UT::trm( in.substr( curr, i-curr ) );
+				if( pushMe.length() ){
+					t1->push_back( pushMe );
+				}
+				t1->push_back( in.substr( i, 1 ) );//push the current ; char
+				curr=i+1;//set current so the next dump starts here
+			}		
 		}
+		lastChar=in[i];
 	}
 	/* On loop finish, dump the rest of the string into the vector */
-	if( i-curr ){
+	if( i-curr+1 ){
 		pushMe=UT::trm( in.substr( curr, i-curr ) );
 		if( pushMe.length() ){//Couple of steps to avoid pushing empty string
 			t1->push_back( pushMe );
@@ -78,16 +192,16 @@ vector< string >* Parser::strToV( string in ){/**/
 	if( t1->at( t1->size()-1 ) != ";" ){
 		t1->push_back( ";" );
 	}
+	//UT::dispV( t1 );
 	return t1;
 }
-/* Function populates composite object from string input */
 void Parser::populate( RShell* composite ){
 	/* First, parse the string and deal with parse errors */
+	UT::trunc( '#', str );//Get rid of comments
 	if( !str.length() ){
-		errNo=1;//empty string, false, no message
+		errNo=1;//empty string, abort, no error message
 		return;
 	}
-	UT::trunc( '#', str );//Get rid of comments
 	vector< string >* t1=strToV( str );//tokenize string to vector
 	int n = t1->size();
 	if( !n || n%2 != 0 ){
@@ -96,105 +210,38 @@ void Parser::populate( RShell* composite ){
 		return;
 	}
 	/* Variables:
-		RShell pointers are local vars to hold commands to be added to composite
-		curr is more readable than: t1->at( i )  It's the current &|; char
-		cmdTxt is more readable than: t1->at( i-1 )  It's the current command and args
-		prev holds curr from previous round
+		symb, cmdTxt: current &|; and command
 	*/
-	RShell* myConnector=NULL;
-	RShell* myCommand=NULL;
-	string curr="", cmdTxt="", prev=";";
+	string symb="", cmdTxt="";
+	RShell* curr=NULL;
+	RShell* prev=NULL;
+	RShell* cmd=makeCmd( t1->at( 0 ) );//only used for first iteration
 	/* t1 length is multiples of 2 */
-	for( int i = 1; i<n; i+=2 ){
-		curr=t1->at( i );
-		cmdTxt=t1->at( i-1 );
-		/* &, | connectors have same behavior, accumulate or dump.
-			Two ways to addCommand: 
-			1. In object constructor for initial cmd; pushes to first of composite queue
-			2. If multiple cmds, uses addCommand() to push them to the composite queue
-		*/
-		/* First 2 cases are identical except for AND or OR object being created */
-		if( curr == "&" ){
-			if( curr==prev ){
-				if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
-					myCommand=new Composite( cmdTxt.substr( 1, cmdTxt.length()-2 ) );
-				}
-				else{
-					myCommand=new Tester( cmdTxt );
-				}
-				myConnector->addCommand(  myCommand );
-			}
-			else{
-				if( myConnector ){
-					composite->addCommand( myConnector );
-				}
-				if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
-					myConnector=new AND( new Composite( cmdTxt.substr( 1, cmdTxt.length()-2 ) ) );
-				}
-				else{
-					myConnector=new AND( new Tester( cmdTxt ) );
-				}
-				
-			}
+	for( int i = 2; i<n; i+=2 ){
+		symb=t1->at( i-1 );
+		cmdTxt=t1->at( i );
+		if( prev ){//subsequent iterations
+			curr=makeConnector( symb[0] );
+			curr->addCommand( prev );
+			curr->addCommand( makeCmd( cmdTxt ) );
+			prev=curr;
 		}
-		else if( curr == "|" ){
-			if( curr==prev ){
-				if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
-					myCommand=new Composite( cmdTxt.substr( 1, cmdTxt.length()-2 ) );
-				}
-				else{
-					myCommand=new Tester( cmdTxt );
-				}
-				myConnector->addCommand(  myCommand );
-			}
-			else{
-				if( myConnector ){
-					composite->addCommand( myConnector );
-				}
-				if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
-					myConnector=new OR( new Composite( cmdTxt.substr( 1, cmdTxt.length()-2 ) ) );
-				}
-				else{
-					myConnector=new OR( new Tester( cmdTxt ) );
-				}
-			}
+		else {//first iteration
+			prev=makeConnector( symb[0] );
+			prev->addCommand( cmd );
+			cmd=makeCmd( cmdTxt );
+			prev->addCommand( cmd );
 		}
-		
-		else if( curr == ";" ){
-			/* Semicolon behavior different because of input like: cmd && cmd;
-				Skip adding new if preceded by a different connector, as that connector
-				needs to finish out. If input is like this: "cmd;" then cmd is 
-				pushed directly to the composite queue. There is no semicolon class
-			*/
-			if( curr==prev ){
-				if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
-					myCommand=new Composite( cmdTxt.substr( 1, cmdTxt.length()-2 ) );
-				}
-				else{
-					myCommand=new Tester( cmdTxt );
-				}
-				composite->addCommand(  myCommand );
-			}
-			else{
-				if( myConnector ){
-					if( cmdTxt.length()>2 && cmdTxt[0]=='(' ){
-						myCommand=new Composite( cmdTxt.substr( 1, cmdTxt.length()-2 ) );
-					}
-					else{
-						myCommand=new Tester( cmdTxt );
-					}
-					myConnector->addCommand(  myCommand );
-					composite->addCommand( myConnector );
-					myConnector=NULL;
-				}
-			}
-		}
-		prev=curr;
 	}
-	/* final dump after loop */
-	if( myConnector ){
-		composite->addCommand( myConnector );
+	if( prev ){
+		/* final dump after loop */
+		composite->addCommand( prev );
+	}
+	else{
+		/* Here only if loop didn't run (single command) */
+		prev=makeConnector( ';' );
+		prev->addCommand( cmd );
+		composite->addCommand( prev );
 	}
 	delete t1;
 }
-

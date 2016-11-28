@@ -5,14 +5,21 @@
 #include<vector>
 #include<iostream>
 #include <stdio.h>
+//#include <stdlib.h>//for getenv()
+#include <unistd.h>//for getcwd()
 #include <string.h>
+#include <pwd.h>
 using namespace std;
+
 
 /*	This is the c++ equivalent to PHP static classes
 	If there's a function that's general enough to be used in several
 	different classes, just give it global scope (protected by a namespace)
 */
 namespace UT{//Utility
+	/*	Manage path-working-directory info	*/
+	void updateDirs( string dirs[] );
+	string getHomeDir();
 
 	/*	Converts vector<string> to array of char arrays to comply with execvp.
 		Adds NULL element at end
@@ -59,7 +66,7 @@ namespace UT{//Utility
 	/* Convert array of char arrays to string, skipping first element */
 	string cmdLineToStr( int argc, char* argv[] );
 
-	/* Returns length of longest string in the vector. (Not using this one) */
+	/* Returns length of longest string in the vector. */
 	int maxStrLen( vector< string >* v );
 
 	/* Dev tool; Quick display of vector contents */
@@ -67,3 +74,4 @@ namespace UT{//Utility
 }
 
 #endif
+

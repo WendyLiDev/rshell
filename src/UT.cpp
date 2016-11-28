@@ -1,13 +1,43 @@
 /* David Swanson CS100 Fall 2016 */
-#include "../header/UT.h"
+#include "UT.h"
 
 /* See .h file for general descriptions */
+
+void UT::updateDirs( string dirs[] ){
+	/* Dirs is array length 3:
+		0=current working directory
+		1=previous directory
+		2=home directory
+	*/
+	char buffer[128];
+	char *cwd = getcwd(buffer, sizeof(buffer));
+	if ( cwd ){
+		/* Got current directory 
+			If no change, don't do anything
+			If change, copy current to previous and
+			update current
+		*/
+		string cwdStr=string( cwd );
+		if( dirs[0] != cwdStr ){//skip if nothing has changed
+			dirs[1]=dirs[0];
+			dirs[0]=string( cwd );
+		}
+	}
+	else{
+		cout << "Can't find current working directory..." << endl;
+		dirs[0]="";
+	}
+}
+string UT::getHomeDir(){
+	/* Get and return as string */
+	struct passwd* pw = getpwuid( getuid() );
+	return string( pw->pw_dir );
+}
 
 char* const* UT::toNullTermArray( vector< string > &v ){
 	int i, n=v.size();
 	char** argv = new char*[ n+1 ];
 	for ( i = 0; i<n; i++ ){
-		//cout << "load: " << v.at(i).c_str() << endl;
         argv[i] = new char[ v.at(i).length() + 1];
 		strcpy( argv[i], v.at(i).c_str() );
 	}
@@ -43,11 +73,6 @@ void UT::deleteNullTermArray( char* const* &argv ){
 }
 void UT::trunc( char at, string &in ){
 	int n=in.length();
-	if(in[0] == '#'){
-		//if line begins with '#' then replace line with command ":" which does nothing.
-		in = ":";
-		return;
-	}
 	for( int i = 0; i<n; i++ ){
 		if( in[i]==at ){
 			in=in.substr( 0, i );

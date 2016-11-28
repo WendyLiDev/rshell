@@ -1,85 +1,93 @@
 /* David Swanson CS100 Fall 2016 */
 
-#include "../header/RShell.h"
-#include "../header/Parser.h"
+#include "RShell.h"
+#include "Parser.h"
 
-Composite::Composite( string setStr ){
-	P=new Parser( setStr );
+
+Composite::Composite( string setStr, string dirs[] ){
+	P=new Parser( setStr, dirs );
+	connector=NULL;
 	P->populate( this );
 }
 Composite::~Composite(void){
-	int n = q.size();
-	for( int i = 0; i<n; i++ ){
-		delete q[i];
+	if( P ){
+		delete P;
 	}
-	delete P;
+	if( connector ){
+		delete connector;
+	}
 }
 bool Composite::execute(){
 	/* Returns false on parse error */
-	if( P->getErrNo()>1 ){
+	if( P->getErrNo()>1 || !connector ){
 		return false;
 	}
-	/* q may hold objects of AND, OR, Cmd or Composite */
-	int n = q.size();
-	bool good=true;
-	for( int i = 0; i<n; i++ ){
-		good &= q.at( i )->execute();
-	}
-	return good;
+	return connector->execute();
 }
 void Composite::addCommand( RShell* newConnector ){
-	q.push_back( newConnector );
+	connector=newConnector;
 }
 string Composite::getErrTxt(){
 	return P->getErrTxt();
 }
 
 Connector::~Connector(void){
-	int n = q.size();
-	for( int i = 0; i<n; i++ ){
-		delete q[i];
+	if( left ){
+		delete left;
+	}
+	if( right ){
+		delete right;
 	}
 }
 void Connector::addCommand( RShell* newCommand ){
-	q.push_back( newCommand );
+	if( left ){
+		right=newCommand;
+	}
+	else{
+		left=newCommand;
+	}
 }
-/* Connectors may be initialized with a command,
-or may add commands later using addCommand() 
-*/
-AND::AND( RShell* newCmd ){
-	q.push_back( newCmd );
-}
-OR::OR( RShell* newCmd ){
-	q.push_back( newCmd );
-}
+
 bool AND::execute(){
 	/* Follows 'short circuit rules for evaluation' 
 		Any false quits loop and returns false
 	*/
 	//cout << "AND execute" << endl;
-	int n = q.size();
-	for( int i = 0; i<n; i++ ){
-		if( !q.at( i )->execute() ){
-			return false;
-		}
+	bool result=false;
+	if( left ){
+		result=left->execute();
+	}
+	if( right && result ){
+		result=right->execute();
 	}
 	//cout << "end AND execute" << endl;
-	return true;
+	return result;
 }
 bool OR::execute(){
-	/* Follows 'short circuit rules for evaluation' 
-		Any true quits loop and returns true
-	*/
+	/* Follows 'short circuit rules for evaluation' */
 	//cout << "OR execute" << endl;
-	int n = q.size();
-	for( int i = 0; i<n; i++ ){
-		if( q.at( i )->execute() ){
-			// cout << "end OR execute: true result" << endl;
-			return true;
-		}
+	bool result=false;
+	if( left ){
+		result=left->execute();
+	}
+	if( right && !result ){
+		result=right->execute();
 	}
 	//cout << "end OR execute" << endl;
-	return false;
+	return result;
+}
+bool SemiColon::execute(){
+	/* Evaluates all */
+	//cout << "SemiColon execute" << endl;
+	bool result=true;
+	if( left ){
+		result&=left->execute();
+	}
+	if( right ){
+		result&=right->execute();
+	}
+	//cout << "end SemiColon execute" << endl;
+	return result;
 }
 
 Cmd::Cmd( string setCmd ) : cmd( setCmd ){}
@@ -90,11 +98,6 @@ bool Cmd::execute(){
 		exit( 0 );
 	}
 	int status=0;
-	//vector< string > t1;
-	//UT::tok( ' ', cmd, t1 );
-	//char* const* argv=UT::toNullTermArray( t1 );
-	//UT::printNullTermArray( argv );
-	
 	pid_t pid = fork();
 	if (pid == -1){
 		perror( "Could not start child process" );
@@ -115,105 +118,34 @@ bool Cmd::execute(){
 	else {//This is the parent process; wait for child
 		waitpid( pid, &status, 0 );
 		if( status ){
-			// perror( "Command exited with status > 0" );
+			perror( "Command exited with status > 0" );
 		}
-		//cout << "Parent process: status=" << cmd << ", " << arg << " exited with status " << status << endl;
 	}
-	//UT::deleteNullTermArray( argv );
 	return ( status == 0 );
 }
 
-Tester::Tester( string setStr ){
-	/* Tester parses command text looking for [] or 'test' 
-		
-	*/
-	vector< string > t1;
-	if( 
-		( prepTest1( setStr, t1 ) || prepTest2( setStr, t1 ) ) &&
-			prepTest3( t1 )
-		){
-		testing= true;
-		//cout << "testType=" << testType << endl;
-		//cout << "fileName=" << fileName << endl;
-		C=NULL;
-	}
-	else{
-		/* If here, no test; instantiate Cmd object and pass execution to that 
-			based on bool testing var
-		*/
-		C=new Cmd( setStr );
-		testing=false;
-	}
+Tester::Tester( char test, string file ){
+	testType=test;
+	fileName=file;
 }
-Tester::~Tester(void){
-	if( C ){
-		delete C;
-	}
-}
-bool Tester::prepTest1( string &in, vector< string > &t1 ){
-	/* Checks for test brackets; if so, tokenizes string to vector */
-	string trimmed=UT::trm( in, '[', ']' );
-	if( trimmed.length() != in.length() ){
-		in=trimmed;
-		UT::tok( ' ', '"', '"', trimmed, t1 );
-		return true;
-	}
-	return false;
-}
-bool Tester::prepTest2( string &in, vector< string > &t1 ){
-	/* Tokenizes string to vector and checks for keyword 'test' */
-	UT::tok( ' ', '"', '"', in, t1 );
-	int n=t1.size();
-	for( int i = 0; i<n; i++ ){
-		if( t1.at( i ) == "test" ){
-			t1.erase( t1.begin() + i );
-			return true;
-		}
-	}
-	return false;
-}
-bool Tester::prepTest3( vector<string> &t1 ){
-	/* Checks for args -e -f -d. Sets test type and filename */
-	int n=t1.size();
-	testType=' ';
-	fileName="";
-	for( int i = 0; i<n; i++ ){
-		if( t1.at( i ) == "-e" ){
-			testType='e';
-		}
-		else if( t1.at( i ) == "-f" ){
-			testType='f';
-		}
-		else if( t1.at( i ) == "-d" ){
-			testType='d';
-		}
-		else{
-			fileName=UT::trm( t1.at( i ), '"', '"' );
-		}
-	}
-	return testType && fileName.length();
-}
+
 /* d, e, f execute based on testType, if any */
 bool Tester::d() {
 	const char *path=fileName.c_str();
- 	struct stat s;
+    struct stat s;
 	return !stat( path,&s ) && ( s.st_mode & S_IFDIR );
 }
 bool Tester::e() {
 	const char *path=fileName.c_str();
-   	 struct stat s;
+    struct stat s;
 	return !stat( path,&s );
 }
 bool Tester::f(){
-	const char* path=fileName.c_str();
-	struct stat s;
-	return !stat( path, &s ) && ( s.st_mode & S_IFREG );
+	const char *path=fileName.c_str();
+    struct stat s;
+	return !stat( path,&s ) && ( s.st_mode & S_IFREG );
 }
 bool Tester::execute(){
-	if( !testing ){
-		//cout << "not testing" << endl;
-		return C->execute();
-	}
 	bool result=( testType=='d' && d() ) ||
 				( testType=='e' && e() ) ||
 				( testType=='f' && f() );
@@ -226,6 +158,16 @@ bool Tester::execute(){
 		return false;
 	}
 }
-void Tester::addCommand( RShell* newConnector ){
-	C->addCommand( newConnector );
+void Tester::addCommand( RShell* newConnector ){}
+
+
+CD::CD( string file ) : fileName( file ) {}
+bool CD::execute(){
+	//cout << "execute cd: fileName="<< fileName << endl;
+    if ( chdir( fileName.c_str() ) < 0) {
+    	perror( "chdir fail");
+		return false;
+    }
+	return true;
 }
+void CD::addCommand( RShell* newConnector ){}
